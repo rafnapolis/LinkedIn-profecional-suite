@@ -5,7 +5,7 @@ from PIL import Image
 
 # 1. CONFIGURACIÓN DE IA Y ENLACES
 genai.configure(api_key=os.environ.get('GOOGLE_API_KEY'))
-model = genai.GenerativeModel("gemini-1.5-flash")
+model = genai.GenerativeModel("gemini-1.5-flash-latest")
 MONETAG_LINK = os.environ.get('MONETAG_LINK')
 MP_LINK = "https://link.mercadopago.com.ar/ministerioicd" # Para Argentina
 KOFI_LINK = "https://ko-fi.com/ministerioicd" # Para el resto del mundo
