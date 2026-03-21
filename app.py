@@ -96,3 +96,4 @@ with tabs[2]:
                     st.markdown(res.text)
             else:
                 st.error("Debes ingresar un ID de transacción válido y confirmar el pago para continuar.")
+    
