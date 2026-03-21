@@ -4,14 +4,10 @@ import os
 from PIL import Image
 
 # --- CONFIGURACIÓN DE IA DINÁMICA ---
-# Esto evita el error 404 al buscar el modelo disponible en tu cuenta
 try:
     genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-    
-    # Buscamos modelos que soporten generación de contenido
     modelos = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
     
-    # Prioridad de selección
     if "models/gemini-1.5-flash" in modelos:
         target_model = "gemini-1.5-flash"
     elif "models/gemini-1.5-pro" in modelos:
@@ -21,7 +17,7 @@ try:
         
     model = genai.GenerativeModel(target_model)
 except Exception as e:
-    st.error("Error de configuración inicial. Revisa las Secrets en Streamlit.")
+    st.error("Error de configuración de IA. Revisa las Secrets.")
 
 # --- ENLACES DE MONETIZACIÓN ---
 MONETAG = st.secrets.get("MONETAG_LINK", "#")
@@ -31,7 +27,6 @@ KOFI_GLOBAL = st.secrets.get("KOFI_LINK", "#")
 # --- INTERFAZ ---
 st.set_page_config(page_title="LinkedIn Suite Pro", page_icon="🚀")
 
-# Estilo para botones de pago
 def boton_pago(texto, link, color="#28a745"):
     st.markdown(f'''
         <a href="{link}" target="_blank" style="text-decoration: none;">
@@ -44,65 +39,60 @@ def boton_pago(texto, link, color="#28a745"):
 st.title("💼 LinkedIn Professional Suite")
 tabs = st.tabs(["✨ Humanizador", "👤 Auditor de Perfil", "📄 Auditor de CV"])
 
-# --- TAB 1: HUMANIZADOR ---
+# --- TAB 1: HUMANIZADOR (Monetización DirectLink) ---
 with tabs[0]:
     st.header("Humanizador de Posts")
-    texto_post = st.text_area("Pega tu borrador:", placeholder="Ej: Hoy instalé un servidor...")
-    
+    texto_post = st.text_area("Pega tu borrador:")
     if st.button("🚀 Optimizar Post"):
         if texto_post:
-            with st.spinner("La IA está escribiendo..."):
-                prompt = f"Eres experto en LinkedIn. Convierte esto en un post humano con 3 ganchos y una pregunta final: {texto_post}"
-                response = model.generate_content(prompt)
-                st.markdown("### ✅ Tu Post Optimizado:")
-                st.write(response.text)
-                st.info(f"👉 [¿Quieres más tips virales? Haz clic aquí]({MONETAG})")
-        else:
-            st.warning("Escribe algo primero.")
+            with st.spinner("Optimizando..."):
+                res = model.generate_content(f"Optimiza este post para LinkedIn con ganchos virales: {texto_post}")
+                st.markdown(res.text)
+                st.info(f"👉 [Descarga más plantillas virales aquí]({MONETAG})")
 
-# --- TAB 2: AUDITOR DE PERFIL (Monetizado con Monetag) ---
+# --- TAB 2: AUDITOR DE PERFIL (Protección por Clic) ---
 with tabs[1]:
     st.header("Auditoría de Perfil")
-    st.write("Analiza tu foto de perfil con IA para mejorar tu marca personal.")
-    
-    foto = st.file_uploader("Sube tu foto de perfil", type=["jpg", "png", "jpeg"])
-    
+    foto = st.file_uploader("Sube tu foto de perfil", type=["jpg", "png", "jpeg"], key="perfil")
     if foto:
         st.image(foto, width=150)
-        st.markdown(f"### 🛡️ Validación Requerida")
-        st.write("Para ver tu puntaje de perfil (0-10) y consejos de IA, activa tu sesión:")
+        st.markdown("### 🔑 Acceso")
+        st.write("Haz clic abajo para generar tu código de acceso gratuito:")
+        boton_pago("GENERAR CLAVE DE ACCESO", MONETAG, color="#0077b5")
         
-        boton_pago("🔑 1. GENERAR TOKEN (GRATIS)", MONETAG, color="#0077b5")
+        acceso_confirmado = st.checkbox("He generado mi clave de acceso")
         
-        if st.button("⚡ 2. VER RESULTADOS DE AUDITORÍA"):
-            with st.spinner("Analizando imagen..."):
-                img = Image.open(foto)
-                res = model.generate_content(["Analiza esta foto de LinkedIn. Da un puntaje del 1 al 10, evalúa la iluminación, el fondo y la expresión profesional.", img])
-                st.success("Análisis de Perfil Completado")
-                st.markdown(res.text)
+        if st.button("⚡ ANALIZAR PERFIL"):
+            if acceso_confirmado:
+                with st.spinner("Analizando..."):
+                    img = Image.open(foto)
+                    res = model.generate_content(["Analiza esta foto de perfil profesional. Da puntaje del 1 al 10 y consejos.", img])
+                    st.markdown(res.text)
+            else:
+                st.error("Por favor, genera tu clave en el botón azul primero.")
 
-# --- TAB 3: AUDITOR DE CV (Monetización Directa) ---
+# --- TAB 3: AUDITOR DE CV (Protección por Comprobante) ---
 with tabs[2]:
-    st.header("Auditoría de CV (ATS Friendly)")
-    st.write("Analizamos tu CV para que pase los filtros de las grandes empresas.")
-    
-    cv_file = st.file_uploader("Sube tu CV en formato Imagen (Próximamente PDF)", type=["jpg", "png", "jpeg"])
+    st.header("Auditoría de CV Premium")
+    cv_file = st.file_uploader("Sube tu CV (Imagen)", type=["jpg", "png", "jpeg"], key="cv")
     
     if cv_file:
-        st.markdown("### 💳 Activa tu Auditoría Premium")
-        col1, col2 = st.columns(2)
+        st.markdown("### 💳 Paso 1: Pago de Auditoría")
+        c1, c2 = st.columns(2)
+        with c1: boton_pago("Pagar Mercado Pago (ARG)", MP_ARG, color="#009ee3")
+        with c2: boton_pago("Pay Ko-fi (Global)", KOFI_GLOBAL, color="#ff5e5b")
         
-        with col1:
-            st.write("**Argentina**")
-            boton_pago("Pagar con Mercado Pago", MP_ARG, color="#009ee3")
-            
-        with col2:
-            st.write("**Resto del Mundo**")
-            boton_pago("Pay with Ko-fi (USD)", KOFI_GLOBAL, color="#ff5e5b")
-            
-        if st.button("🚀 INICIAR ANÁLISIS DE CV"):
-            with st.spinner("Escaneando debilidades en el CV..."):
-                img_cv = Image.open(cv_file)
-                res = model.generate_content(["Actúa como un reclutador experto. Analiza este CV, busca palabras clave faltantes y errores que los filtros ATS rechazarían.", img_cv])
-                st.markdown("### 📊 Informe de Auditoría:")
-                st.markdown(res.text)
+        st.markdown("---")
+        st.markdown("### 🔐 Paso 2: Validación de Pago")
+        comprobante = st.text_input("Ingresa el número de operación o ID de transacción:")
+        confirmacion_pago = st.checkbox("Confirmo que he realizado el pago correctamente")
+
+        if st.button("🚀 INICIAR AUDITORÍA PROFESIONAL"):
+            if confirmacion_pago and len(comprobante) > 4:
+                with st.spinner("Análisis ATS en curso..."):
+                    img_cv = Image.open(cv_file)
+                    res = model.generate_content(["Analiza este CV como reclutador experto. Busca errores ATS y palabras clave.", img_cv])
+                    st.success(f"Análisis para transacción {comprobante}:")
+                    st.markdown(res.text)
+            else:
+                st.error("Debes ingresar un ID de transacción válido y confirmar el pago para continuar.")
