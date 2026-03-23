@@ -17,7 +17,7 @@ except:
 MONETAG = st.secrets.get("MONETAG_LINK", "#")
 MP_ARG = st.secrets.get("MP_LINK", "#")
 KOFI_GLOBAL = st.secrets.get("KOFI_LINK", "#")
-URL_APP = "TU_URL_DE_STREAMLIT_AQUI" # Reemplaza con tu link real
+URL_APP = "https://linkedin-profecional-suite-hybj2gli8cjvqbhtkwazq2.streamlit.app/" # Reemplaza con tu link real
 
 # --- ESTADOS DE SESIÓN ---
 if 'clic_monetag' not in st.session_state: st.session_state.clic_monetag = False
