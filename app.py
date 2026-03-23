@@ -2,6 +2,7 @@ import streamlit as st
 import google.generativeai as genai
 from PIL import Image
 import time
+import urllib.parse
 
 # --- CONFIGURACIÓN DE IA ---
 try:
@@ -16,8 +17,9 @@ except:
 MONETAG = st.secrets.get("MONETAG_LINK", "#")
 MP_ARG = st.secrets.get("MP_LINK", "#")
 KOFI_GLOBAL = st.secrets.get("KOFI_LINK", "#")
+URL_APP = "TU_URL_DE_STREAMLIT_AQUI" # Reemplaza con tu link real
 
-# --- ESTADOS DE SESIÓN (Para evitar saltos) ---
+# --- ESTADOS DE SESIÓN ---
 if 'clic_monetag' not in st.session_state: st.session_state.clic_monetag = False
 if 'perfil_valido' not in st.session_state: st.session_state.perfil_valido = False
 if 'pago_cv_verificado' not in st.session_state: st.session_state.pago_cv_verificado = False
@@ -35,11 +37,11 @@ with tabs[0]:
     t_post = st.text_area("Borrador de Post:")
     if st.button("🚀 Optimizar Post"):
         if t_post:
-            res = model.generate_content(f"Optimiza este post para LinkedIn con ganchos: {t_post}")
+            res = model.generate_content(f"Optimiza este post para LinkedIn: {t_post}")
             st.write(res.text)
             st.info(f"👉 [Más herramientas gratis aquí]({MONETAG})")
 
-# --- TAB 2: PERFIL (MONETIZACIÓN POR TIEMPO) ---
+# --- TAB 2: PERFIL (CON FUNCIÓN COMPARTIR) ---
 with tabs[1]:
     st.header("Análisis de Perfil")
     f_p = st.file_uploader("Sube tu foto", type=["jpg", "png", "jpeg"], key="p_up")
@@ -60,46 +62,51 @@ with tabs[1]:
                 st.success("✅ Acceso Validado.")
 
         if st.session_state.perfil_valido:
-            if st.button("⚡ EJECUTAR ANÁLISIS DE PERFIL"):
-                img = Image.open(f_p)
-                res = model.generate_content(["Analiza esta foto de LinkedIn profesionalmente.", img])
-                st.write(res.text)
-                st.session_state.clic_monetag = False
-                st.session_state.perfil_valido = False
+            if st.button("⚡ EJECUTAR ANÁLISIS"):
+                with st.spinner("IA Analizando..."):
+                    img = Image.open(f_p)
+                    # Forzamos a la IA a dar una puntuación numérica clara
+                    prompt = "Analiza esta foto de LinkedIn. 1. Dame una puntuación del 1 al 10 en una sola línea que diga 'PUNTUACIÓN: X/10'. 2. Da 3 consejos breves."
+                    res = model.generate_content([prompt, img])
+                    st.session_state['resultado_ia'] = res.text
+                    st.write(res.text)
 
-# --- TAB 3: CV (VALIDACIÓN DE COMPROBANTE CON IA) ---
+            # BOTÓN PARA COMPARTIR EN LINKEDIN
+            if 'resultado_ia' in st.session_state:
+                st.markdown("---")
+                st.subheader("📢 ¡Comparte tu resultado!")
+                
+                # Extraemos la puntuación para el mensaje social
+                msg = f"🚀 Acabo de auditar mi perfil de LinkedIn con IA y obtuve un gran resultado. ¡Prueba tu puntuación gratis aquí! {URL_APP}"
+                msg_encoded = urllib.parse.quote(msg)
+                share_url = f"https://www.linkedin.com/sharing/share-offsite/?url={urllib.parse.quote(URL_APP)}&text={msg_encoded}"
+                
+                st.code(msg, language="text") # Para que lo copien fácil
+                dibujar_boton("📲 COMPARTIR EN MI LINKEDIN", share_url, color="#0077b5")
+
+# --- TAB 3: CV (CAJERO VIRTUAL IA) ---
 with tabs[2]:
     st.header("🎯 Auditoría Premium CV")
-    f_cv = st.file_uploader("1. Sube tu CV (Imagen)", type=["jpg", "png", "jpeg"], key="cv_up")
-    
+    f_cv = st.file_uploader("Sube tu CV (Imagen)", type=["jpg", "png", "jpeg"], key="cv_up")
     if f_cv:
         st.subheader("2. Realiza el Pago")
         c1, c2 = st.columns(2)
         with c1: dibujar_boton("Mercado Pago (ARG)", MP_ARG, color="#009ee3")
         with c2: dibujar_boton("Ko-fi (Global)", KOFI_GLOBAL, color="#ff5e5b")
         
-        st.markdown("---")
         st.subheader("3. Validación de Comprobante")
-        f_pago = st.file_uploader("Sube la captura de tu pago", type=["jpg", "png", "jpeg"], key="pago_ia")
-        
+        f_pago = st.file_uploader("Sube captura del pago", type=["jpg", "png", "jpeg"], key="p_ia")
         if f_pago:
             if st.button("🔍 VERIFICAR PAGO CON IA"):
-                with st.spinner("Nuestra IA está verificando el ticket..."):
-                    img_ticket = Image.open(f_pago)
-                    v_prompt = "Responde solo VALIDO si esta imagen es un comprobante de pago de banco, Mercado Pago o Ko-fi. Si es otra cosa, responde FALSO."
-                    v_res = model.generate_content([v_prompt, img_ticket])
-                    
+                with st.spinner("Verificando..."):
+                    v_res = model.generate_content(["Responde VALIDO si es un comprobante de pago real, sino FALSO.", Image.open(f_pago)])
                     if "VALIDO" in v_res.text.upper():
                         st.session_state.pago_cv_verificado = True
-                        st.success("✅ ¡Pago confirmado! Botón de Auditoría desbloqueado.")
-                    else:
-                        st.error("❌ Imagen no válida. Sube un comprobante de pago real.")
+                        st.success("✅ Pago confirmado.")
+                    else: st.error("❌ Comprobante no válido.")
 
             if st.session_state.pago_cv_verificado:
-                if st.button("🚀 INICIAR AUDITORÍA PROFESIONAL"):
-                    with st.spinner("Analizando CV..."):
-                        img_cv = Image.open(f_cv)
-                        res = model.generate_content(["Analiza este CV para filtros ATS.", img_cv])
-                        st.markdown(res.text)
-                        st.balloons()
-                        st.session_state.pago_cv_verificado = False
+                if st.button("🚀 INICIAR AUDITORÍA"):
+                    res = model.generate_content(["Analiza este CV para ATS.", Image.open(f_cv)])
+                    st.markdown(res.text)
+                    st.balloons()
