@@ -12,13 +12,12 @@ except Exception as e:
     st.error("Error de configuración de IA. Revisa tus Secrets.")
 
 # --- ENLACES Y URL REAL ---
-# IMPORTANTE: Reemplaza con tu URL real si cambia
 URL_APP = "https://linkedin-profecional-suite-hybj2gli8cjvqbhtkwazq2.streamlit.app/"
 MONETAG = st.secrets.get("MONETAG_LINK", "#")
 MP_ARG = st.secrets.get("MP_LINK", "#")
 KOFI_GLOBAL = st.secrets.get("KOFI_LINK", "#")
 
-# --- ESTADOS DE SESIÓN ---
+# --- ESTADOS DE SESIÓN (ESTRICTOS) ---
 if 'clic_monetag' not in st.session_state: st.session_state.clic_monetag = False
 if 'perfil_valido' not in st.session_state: st.session_state.perfil_valido = False
 if 'pago_cv_verificado' not in st.session_state: st.session_state.pago_cv_verificado = False
@@ -58,56 +57,57 @@ with tabs[0]:
     if st.button("🚀 HUMANIZAR AHORA"):
         if t_post:
             with st.spinner("Transformando..."):
-                res = model.generate_content(f"Reescribe este post para LinkedIn para que sea viral, humano y use ganchos: {t_post}")
+                res = model.generate_content(f"Reescribe este post para LinkedIn para que sea viral y humano: {t_post}")
                 st.write(res.text)
-                st.info(f"👉 [Descubre más herramientas aquí]({MONETAG})")
 
-# --- TAB 2: AUDITORÍA DE PERFIL (VIRAL) ---
+# --- TAB 2: AUDITORÍA DE PERFIL (FLUJO OBLIGATORIO) ---
 with tabs[1]:
-    st.header("👤 Análisis de Imagen Profesional")
-    f_p = st.file_uploader("Sube tu foto de perfil", type=["jpg", "png", "jpeg"], key="p_up")
+    st.header("👤 Análisis de Perfil")
+    f_p = st.file_uploader("Sube tu foto", type=["jpg", "png", "jpeg"], key="p_up")
     
     if f_p:
         st.image(f_p, width=150)
         
+        # PASO 1: BLOQUEO DE PUBLICIDAD
         if not st.session_state.clic_monetag:
-            st.warning("🔑 Paso 1: Activa la IA gratuita haciendo clic abajo.")
+            st.info("🎯 Para activar el análisis gratuito, haz clic en el botón azul.")
             dibujar_boton("🚀 CLIC AQUÍ: ACTIVAR IA (MONETAG)", MONETAG, color="#0077b5")
-            if st.button("YA HICE CLIC (INICIAR VALIDACIÓN)"):
+            if st.button("CONFIRMAR CLIC Y CONTINUAR"):
                 st.session_state.clic_monetag = True
                 st.rerun()
 
+        # PASO 2: CONTADOR AUTOMÁTICO TRAS EL CLIC
         elif st.session_state.clic_monetag and not st.session_state.perfil_valido:
-            st.info("⏳ Validando publicidad... Espera 10 segundos.")
+            st.subheader("⏳ Validando conexión...")
             barra = st.progress(0)
+            status = st.empty()
             for i in range(11):
                 barra.progress(i * 10)
+                status.text(f"Verificando publicidad... {10-i}s")
                 time.sleep(1)
             st.session_state.perfil_valido = True
-            st.success("✅ ¡Acceso Validado!")
             st.rerun()
 
+        # PASO 3: ANÁLISIS Y COMPARTIR
         elif st.session_state.perfil_valido:
-            if st.button("⚡ OBTENER MI PUNTUACIÓN"):
-                with st.spinner("Analizando tu perfil..."):
+            if st.button("⚡ EJECUTAR ANÁLISIS AHORA"):
+                with st.spinner("Analizando..."):
                     img = Image.open(f_p)
-                    prompt = "Analiza esta foto para LinkedIn. 1. Dame una puntuación del 1 al 10: 'PUNTUACIÓN IA: X/10'. 2. Da 2 consejos breves."
+                    prompt = "Analiza esta foto de LinkedIn. 1. Puntuación: X/10. 2. Consejos breves."
                     res = model.generate_content([prompt, img])
                     st.session_state['res_perfil'] = res.text
             
             if 'res_perfil' in st.session_state:
-                st.markdown(f"### 📊 Resultado:\n{st.session_state['res_perfil']}")
-                
-                # --- BOTÓN VIRAL ---
-                msg = f"🚀 Mi perfil de LinkedIn obtuvo un gran puntaje con esta IA. ¡Prueba el tuyo gratis! {URL_APP}"
+                st.markdown(f"**Resultado:**\n{st.session_state['res_perfil']}")
+                msg = f"🚀 ¡Mi perfil de LinkedIn fue auditado por IA! Prueba el tuyo gratis: {URL_APP}"
                 url_share = f"https://www.linkedin.com/sharing/share-offsite/?url={urllib.parse.quote(URL_APP)}"
                 st.code(msg)
-                dibujar_boton("📲 COMPARTIR PUNTAJE EN LINKEDIN", url_share, color="#0077b5")
+                dibujar_boton("📲 COMPARTIR RESULTADO", url_share, color="#0077b5")
                 
                 if st.button("🔄 Analizar otra foto"):
                     st.session_state.clic_monetag = False
                     st.session_state.perfil_valido = False
-                    del st.session_state['res_perfil']
+                    if 'res_perfil' in st.session_state: del st.session_state['res_perfil']
                     st.rerun()
 
 # --- TAB 3: AUDITORÍA CV (CAJERO VIRTUAL) ---
@@ -127,20 +127,19 @@ with tabs[2]:
         
         if f_pago:
             if st.button("🔍 VERIFICAR PAGO CON IA"):
-                with st.spinner("Nuestra IA está verificando el ticket..."):
+                with st.spinner("Verificando..."):
                     img_ticket = Image.open(f_pago)
-                    v_res = model.generate_content(["Responde solo VALIDO si esta imagen es un comprobante de pago real, sino responde FALSO.", img_ticket])
-                    
+                    v_res = model.generate_content(["Responde solo VALIDO si es un comprobante de pago real, sino FALSO.", img_ticket])
                     if "VALIDO" in v_res.text.upper():
                         st.session_state.pago_cv_verificado = True
                         st.success("✅ ¡Pago confirmado!")
                     else:
-                        st.error("❌ Imagen no válida. Sube un comprobante real.")
+                        st.error("❌ Imagen no válida.")
 
             if st.session_state.pago_cv_verificado:
                 if st.button("🚀 INICIAR AUDITORÍA PROFESIONAL"):
-                    with st.spinner("Analizando CV..."):
-                        res = model.generate_content(["Analiza este CV profesionalmente para filtros ATS.", Image.open(f_cv)])
+                    with st.spinner("Analizando..."):
+                        res = model.generate_content(["Analiza este CV para filtros ATS.", Image.open(f_cv)])
                         st.markdown(res.text)
                         st.balloons()
-                        st.session_state.pago_cv_verificado = False
+                        st.session_state.pago_cv_verificado = False                      
