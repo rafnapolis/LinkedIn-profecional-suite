@@ -7,13 +7,11 @@ import urllib.parse
 # --- CONFIGURACIÓN DE IA BLINDADA ---
 try:
     genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-    # Buscamos modelos disponibles para evitar el error 404
     modelos_visibles = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
-    # Prioridad: 1.5-flash, si no, el primero que funcione
     modelo_final = "models/gemini-1.5-flash" if "models/gemini-1.5-flash" in modelos_visibles else modelos_visibles[0]
     model = genai.GenerativeModel(modelo_final.replace("models/", ""))
 except Exception as e:
-    st.error("Error crítico de conexión. Revisa tu API KEY en Secrets.")
+    st.error("Error de conexión. Revisa tu API KEY.")
 
 # --- ENLACES ---
 URL_APP = "https://linkedin-profecional-suite-hybj2gli8cjvqbhtkwazq2.streamlit.app/"
@@ -46,17 +44,13 @@ with tabs[0]:
 with tabs[1]:
     st.header("👤 Análisis de Perfil")
     f_p = st.file_uploader("Sube tu foto", type=["jpg", "png", "jpeg"], key="p_up")
-    
     if f_p:
         st.image(f_p, width=150)
-        
         if not st.session_state.clic_monetag:
-            st.info("🎯 Haz clic para activar la IA.")
             dibujar_boton("🚀 CLIC AQUÍ: ACTIVAR IA (MONETAG)", MONETAG, color="#0077b5")
             if st.button("YA HICE CLIC"):
                 st.session_state.clic_monetag = True
                 st.rerun()
-
         elif st.session_state.clic_monetag and not st.session_state.perfil_valido:
             barra = st.progress(0)
             for i in range(11):
@@ -64,35 +58,50 @@ with tabs[1]:
                 time.sleep(1)
             st.session_state.perfil_valido = True
             st.rerun()
-
         elif st.session_state.perfil_valido:
             if st.button("⚡ EJECUTAR ANÁLISIS"):
-                img = Image.open(f_p)
-                res = model.generate_content(["Analiza esta foto de LinkedIn. Puntuación: X/10.", img])
+                res = model.generate_content(["Analiza esta foto de LinkedIn. Puntuación: X/10.", Image.open(f_p)])
                 st.session_state['res_perfil'] = res.text
-            
             if 'res_perfil' in st.session_state:
                 st.write(st.session_state['res_perfil'])
-                msg = f"🚀 ¡Mi perfil fue auditado por IA! Prueba el tuyo gratis: {URL_APP}"
                 url_share = f"https://www.linkedin.com/sharing/share-offsite/?url={urllib.parse.quote(URL_APP)}"
-                st.code(msg)
                 dibujar_boton("📲 COMPARTIR EN LINKEDIN", url_share, color="#0077b5")
 
-# --- TAB 3: CV (CAJERO VIRTUAL) ---
+# --- TAB 3: CV (CON BOTÓN DE DESCARGA) ---
 with tabs[2]:
     st.header("🎯 Auditoría Premium CV")
-    f_cv = st.file_uploader("Sube tu CV (Imagen)", type=["jpg", "png", "jpeg"], key="cv_up")
+    f_cv = st.file_uploader("1. Sube tu CV (Imagen)", type=["jpg", "png", "jpeg"], key="cv_up")
     if f_cv:
-        dibujar_boton("Mercado Pago (ARG)", MP_ARG, color="#009ee3")
-        f_pago = st.file_uploader("Sube captura del pago", type=["jpg", "png", "jpeg"])
+        st.subheader("2. Realiza el Pago")
+        c1, c2 = st.columns(2)
+        with c1: dibujar_boton("Mercado Pago (ARG)", MP_ARG, color="#009ee3")
+        with c2: dibujar_boton("Ko-fi (Global)", KOFI_GLOBAL, color="#ff5e5b")
+        f_pago = st.file_uploader("3. Sube captura del pago", type=["jpg", "png", "jpeg"])
+        
         if f_pago and st.button("🔍 VERIFICAR PAGO"):
-            v_res = model.generate_content(["Responde VALIDO si es un ticket de pago, sino FALSO.", Image.open(f_pago)])
-            if "VALIDO" in v_res.text.upper():
-                st.session_state.pago_cv_verificado = True
-                st.success("✅ Pago confirmado.")
-            else: st.error("❌ Ticket no válido.")
+            with st.spinner("Verificando..."):
+                v_res = model.generate_content(["Responde VALIDO si es un ticket de pago, sino FALSO.", Image.open(f_pago)])
+                if "VALIDO" in v_res.text.upper():
+                    st.session_state.pago_cv_verificado = True
+                    st.success("✅ Pago confirmado.")
+                else: st.error("❌ Ticket no válido.")
 
         if st.session_state.pago_cv_verificado:
             if st.button("🚀 INICIAR AUDITORÍA"):
-                res = model.generate_content(["Analiza este CV para ATS.", Image.open(f_cv)])
-                st.markdown(res.text)
+                with st.spinner("Analizando CV..."):
+                    res = model.generate_content(["Analiza este CV para filtros ATS. Sé muy detallado.", Image.open(f_cv)])
+                    st.session_state['res_cv'] = res.text
+            
+            if 'res_cv' in st.session_state:
+                st.markdown("### 📋 Tu Informe de Auditoría:")
+                st.markdown(st.session_state['res_cv'])
+                
+                # --- BOTÓN DE DESCARGA ---
+                st.download_button(
+                    label="📥 DESCARGAR AUDITORÍA (TXT)",
+                    data=st.session_state['res_cv'],
+                    file_name="Auditoria_LinkedIn_Suite.txt",
+                    mime="text/plain",
+                    use_container_width=True
+                )
+                st.balloons()
